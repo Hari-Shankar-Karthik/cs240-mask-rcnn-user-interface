@@ -1,0 +1,78 @@
+.container {
+  width: 50%;
+  background-color: #ffffff;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.container h2 {
+  font-size: 1.125rem;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+.fileInput {
+  padding: 0.5rem;
+  border: 1px solid #e5e5e5;
+  border-radius: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.fileInput:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.imageContainer {
+  margin-bottom: 1rem;
+}
+
+.uploadedImage {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.25rem;
+  border: 1px solid #e5e5e5;
+}
+
+.loading {
+  color: #666;
+  font-style: italic;
+}
+
+.error {
+  color: #d32f2f;
+  background-color: #fee;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.metrics {
+  margin-top: 1rem;
+}
+
+.metrics h3 {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.metricsContent {
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-radius: 0.25rem;
+}
+
+.metricsContent p {
+  color: #333;
+  margin: 0.25rem 0;
+}
+
+.metricsContent span {
+  font-weight: 500;
+}
