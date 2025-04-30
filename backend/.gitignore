@@ -2,3 +2,5 @@
 results
 uploads
 *.pyc
+detectron2
+*.ipynb
