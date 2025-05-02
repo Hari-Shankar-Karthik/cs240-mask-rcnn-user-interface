@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
+from typing import Optional
 from heapq import heappush, heappop
 
 
-def load_image(image_path):
+def load_image(image_path: str) -> np.ndarray:
     """Load an image from the given path in BGR format."""
     image = cv2.imread(image_path)
     if image is None:
@@ -11,7 +12,7 @@ def load_image(image_path):
     return image
 
 
-def extract_mask_contour(mask):
+def extract_mask_contour(mask: np.ndarray) -> Optional[np.ndarray]:
     """Extract the largest contour from a binary mask, ensuring CV_8UC1 input."""
     # Convert to single-channel if necessary
     if len(mask.shape) == 3:  # Handle CV_8UC3 (3-channel) input
@@ -29,7 +30,7 @@ def extract_mask_contour(mask):
     return contour
 
 
-def compute_edge_map(image):
+def compute_edge_map(image: np.ndarray) -> np.ndarray:
     """Compute a gradient-based edge map using Sobel filters."""
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
@@ -41,14 +42,14 @@ def compute_edge_map(image):
 
 
 def a_star_snap_point(
-    image,
-    edge_map,
-    start_point,
-    prev_point=None,
-    search_radius=10,
-    lambda_smooth=0.5,
-    lambda_prox=0.2,
-):
+    image: np.ndarray,
+    edge_map: np.ndarray,
+    start_point: tuple,
+    prev_point: tuple = None,
+    search_radius: int = 10,
+    lambda_smooth: float = 0.5,
+    lambda_prox: float = 0.2,
+) -> tuple:
     """Use A* search to snap a contour point to the strongest edge in a search region."""
     h, w = edge_map.shape
     max_edge_value = np.max(edge_map)
@@ -123,7 +124,12 @@ def a_star_snap_point(
     return best_point
 
 
-def snap_contour_to_edges(contour, edge_map, image, search_radius=10):
+def snap_contour_to_edges(
+    contour: np.ndarray,
+    edge_map: np.ndarray,
+    image: np.ndarray,
+    search_radius: int = 10,
+) -> np.ndarray:
     """Snap all contour points to edges using A* search."""
     refined_contour = []
     prev_point = None
@@ -143,14 +149,16 @@ def snap_contour_to_edges(contour, edge_map, image, search_radius=10):
     return np.array(refined_contour, dtype=np.int32)
 
 
-def reconstruct_mask(contour, image_shape):
+def reconstruct_mask(contour: np.ndarray, image_shape: tuple) -> np.ndarray:
     """Reconstruct a binary mask from a contour."""
     mask = np.zeros(image_shape[:2], dtype=np.uint8)
     cv2.fillPoly(mask, [contour], 255)
     return mask
 
 
-def apply_guided_filter(image, mask, radius=5, eps=0.1):
+def apply_guided_filter(
+    image: np.ndarray, mask: np.ndarray, radius: int = 5, eps: float = 0.1
+) -> np.ndarray:
     """Apply guided filter to smooth the mask, preserving edges."""
     try:
         from cv2.ximgproc import guidedFilter
@@ -172,24 +180,37 @@ def apply_guided_filter(image, mask, radius=5, eps=0.1):
         return refined_mask
 
 
-def refine_mask(original_mask, image_path, search_radius=10):
-    """Refine a Mask R-CNN mask and return the image with the refined mask highlighted in neon yellow."""
+def refine_mask(
+    mask: Optional[np.ndarray], image_path: str, search_radius: int = 10
+) -> Optional[np.ndarray]:
+    """
+    Apply A* refinement to a single input mask.
+
+    Args:
+        mask (Optional[np.ndarray]): Binary mask (np.uint8 array of shape (height, width)
+                                    with values 0 or 255), or None if invalid.
+        image_path (str): Path to the input image file.
+        search_radius (int): Radius for A* search region (default: 10).
+
+    Returns:
+        Optional[np.ndarray]: Refined binary mask (np.uint8 array of shape (height, width)
+                             with values 0 or 255), or None if input is None.
+    """
+    if mask is None:
+        return None
+
     # Load image
     image = load_image(image_path)
 
     # Step 1: Extract contour
-    contour = extract_mask_contour(original_mask)
+    contour = extract_mask_contour(mask)
     if contour is None:
-        # Return highlight of original mask if no contour
-        highlighted = image.copy()
-        # Convert original_mask to single-channel if necessary
-        mask_single = (
-            original_mask
-            if len(original_mask.shape) == 2
-            else cv2.cvtColor(original_mask, cv2.COLOR_BGR2GRAY)
+        # Return copy of input mask if no contour
+        return (
+            mask.copy()
+            if len(mask.shape) == 2
+            else cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
         )
-        highlighted[mask_single > 0] = [0, 255, 255]  # Neon yellow
-        return highlighted
 
     # Step 2: Compute edge map
     edge_map = compute_edge_map(image)
@@ -203,8 +224,4 @@ def refine_mask(original_mask, image_path, search_radius=10):
     # Step 5: Post-process with guided filter
     refined_mask = apply_guided_filter(image, refined_mask)
 
-    # Create highlight: neon yellow for mask regions
-    highlighted = image.copy()
-    highlighted[refined_mask > 0] = [0, 255, 255]  # Neon yellow in BGR
-
-    return highlighted
+    return refined_mask

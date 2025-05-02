@@ -12,6 +12,10 @@ interface ImageUploaderProps {
       processing_time: number;
     };
   } | null;
+  currentMaskIndex: number;
+  totalInstances: number;
+  onPrevMask: () => void;
+  onNextMask: () => void;
 }
 
 function ImageUploader({
@@ -20,6 +24,10 @@ function ImageUploader({
   loading,
   error,
   results,
+  currentMaskIndex,
+  totalInstances,
+  onPrevMask,
+  onNextMask,
 }: ImageUploaderProps) {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -65,6 +73,34 @@ function ImageUploader({
               {results.metrics.processing_time.toFixed(2)} seconds
             </p>
           </div>
+          <div className={styles.navigation}>
+            <button
+              onClick={onPrevMask}
+              disabled={currentMaskIndex === 0}
+              className={styles.navButton}
+            >
+              Prev
+            </button>
+            <span className={styles.maskCounter}>
+              {totalInstances > 0
+                ? `${currentMaskIndex + 1} of ${totalInstances}`
+                : "No instances detected"}
+            </span>
+            <button
+              onClick={onNextMask}
+              disabled={
+                currentMaskIndex >= totalInstances - 1 && totalInstances > 0
+              }
+              className={styles.navButton}
+            >
+              Next
+            </button>
+          </div>
+          {currentMaskIndex >= totalInstances - 1 && totalInstances > 0 && (
+            <p className={styles.lastMaskMessage}>
+              This is the last instance mask.
+            </p>
+          )}
         </div>
       )}
     </div>
