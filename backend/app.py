@@ -10,6 +10,7 @@ from models.mask_rcnn import run_mask_rcnn
 from models.astar_refinement import refine_mask
 from utils.image_utils import save_image, load_image, image_to_base64
 from utils.metrics import compute_metrics
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -51,8 +52,6 @@ def upload_image():
 
         # Store metrics
         with open(os.path.join(RESULT_FOLDER, f"{image_id}_metrics.json"), "w") as f:
-            import json
-
             json.dump(
                 {
                     "metrics": metrics,
