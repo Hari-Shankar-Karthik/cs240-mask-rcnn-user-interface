@@ -25,7 +25,36 @@ def setup_detectron2(
 
 
 def run_mask_rcnn(image_path):
-    """Run Mask R-CNN inference on the image and return the most confident mask."""
+    """Run Mask R-CNN inference and return the image with the most confident mask highlighted in neon yellow."""
+    # Load image
+    image = load_image(image_path)
+
+    # Set up Detectron2 predictor
+    predictor = setup_detectron2()
+
+    # Run inference
+    outputs = predictor(image)
+    instances = outputs["instances"].to("cpu")
+    masks = instances.pred_masks.numpy()  # Boolean masks [N, H, W]
+    scores = instances.scores.numpy()  # Confidence scores [N]
+
+    # If no masks are detected, return the original image
+    if len(masks) == 0:
+        return image.copy()
+
+    # Select the mask with the highest confidence score
+    best_idx = np.argmax(scores)
+    mask = masks[best_idx].astype(np.uint8) * 255  # Convert to binary (0 or 255)
+
+    # Create highlight: neon yellow for mask regions
+    highlighted = image.copy()
+    highlighted[mask > 0] = [0, 255, 255]  # Neon yellow in BGR
+
+    return highlighted
+
+
+def get_binary_mask(image_path):
+    """Run Mask R-CNN inference and return the most confident binary mask."""
     # Load image
     image = load_image(image_path)
 

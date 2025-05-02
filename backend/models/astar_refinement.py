@@ -12,8 +12,15 @@ def load_image(image_path):
 
 
 def extract_mask_contour(mask):
-    """Extract the largest contour from a binary mask."""
+    """Extract the largest contour from a binary mask, ensuring CV_8UC1 input."""
+    # Convert to single-channel if necessary
+    if len(mask.shape) == 3:  # Handle CV_8UC3 (3-channel) input
+        mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+    # Ensure binary mask (0 or 255)
     mask = (mask > 0).astype(np.uint8) * 255
+    # Verify mask type is CV_8UC1
+    if mask.dtype != np.uint8:
+        mask = mask.astype(np.uint8)
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:
         return None
@@ -166,14 +173,23 @@ def apply_guided_filter(image, mask, radius=5, eps=0.1):
 
 
 def refine_mask(original_mask, image_path, search_radius=10):
-    """Refine a Mask R-CNN mask using the automated magnetic lasso pipeline."""
+    """Refine a Mask R-CNN mask and return the image with the refined mask highlighted in neon yellow."""
     # Load image
     image = load_image(image_path)
 
     # Step 1: Extract contour
     contour = extract_mask_contour(original_mask)
     if contour is None:
-        return original_mask.copy()  # Return original mask if no contour
+        # Return highlight of original mask if no contour
+        highlighted = image.copy()
+        # Convert original_mask to single-channel if necessary
+        mask_single = (
+            original_mask
+            if len(original_mask.shape) == 2
+            else cv2.cvtColor(original_mask, cv2.COLOR_BGR2GRAY)
+        )
+        highlighted[mask_single > 0] = [0, 255, 255]  # Neon yellow
+        return highlighted
 
     # Step 2: Compute edge map
     edge_map = compute_edge_map(image)
@@ -187,4 +203,8 @@ def refine_mask(original_mask, image_path, search_radius=10):
     # Step 5: Post-process with guided filter
     refined_mask = apply_guided_filter(image, refined_mask)
 
-    return refined_mask
+    # Create highlight: neon yellow for mask regions
+    highlighted = image.copy()
+    highlighted[refined_mask > 0] = [0, 255, 255]  # Neon yellow in BGR
+
+    return highlighted
