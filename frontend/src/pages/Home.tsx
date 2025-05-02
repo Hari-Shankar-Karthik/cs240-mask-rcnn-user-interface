@@ -11,14 +11,17 @@ interface Results {
     dice_coefficient: number;
     processing_time: number;
   };
+  total_instances: number;
 }
 
 function Home() {
   const [image, setImage] = useState<string | null>(null);
   const [imageId, setImageId] = useState<string | null>(null);
-  const [results, setResults] = useState<Results | null>(null);
+  const [currentMaskIndex, setCurrentMaskIndex] = useState<number>(0);
+  const [cachedResults, setCachedResults] = useState<(Results | null)[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [totalInstances, setTotalInstances] = useState<number>(0);
 
   const handleImageUpload = async (file: File) => {
     if (!file) return;
@@ -26,11 +29,14 @@ function Home() {
     setImage(URL.createObjectURL(file));
     setLoading(true);
     setError(null);
-    setResults(null);
+    setCachedResults([]);
     setImageId(null);
+    setCurrentMaskIndex(0);
+    setTotalInstances(0);
 
     const formData = new FormData();
     formData.append("image", file);
+    formData.append("index", "0");
 
     try {
       const response = await fetch(`${API_URL}/upload`, {
@@ -40,6 +46,9 @@ function Home() {
       const data = await response.json();
       if (response.ok) {
         setImageId(data.image_id);
+        setCachedResults([data.results]);
+        setTotalInstances(data.results.total_instances);
+        setLoading(false);
       } else {
         setError(data.error || "Failed to upload image");
         setLoading(false);
@@ -50,30 +59,45 @@ function Home() {
     }
   };
 
-  useEffect(() => {
-    if (!imageId) return;
+  const fetchMask = async (index: number) => {
+    if (!imageId || cachedResults[index]) return; // Use cached result
 
-    const pollResults = async () => {
-      try {
-        const response = await fetch(`${API_URL}/results/${imageId}`);
-        const data = await response.json();
-        if (response.ok) {
-          setResults(data);
-          setLoading(false);
-        } else if (response.status === 202) {
-          setTimeout(pollResults, 2000); // Poll every 2 seconds
-        } else {
-          setError(data.error || "Failed to fetch results");
-          setLoading(false);
-        }
-      } catch (err) {
-        setError("Network error while fetching results");
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_URL}/results/${imageId}/${index}`);
+      const data = await response.json();
+      if (response.ok) {
+        setCachedResults((prev) => {
+          const newResults = [...prev];
+          newResults[index] = data;
+          return newResults;
+        });
+        setLoading(false);
+      } else {
+        setError(data.error || "Failed to fetch mask");
         setLoading(false);
       }
-    };
+    } catch (err) {
+      setError("Network error while fetching mask");
+      setLoading(false);
+    }
+  };
 
-    pollResults();
-  }, [imageId]);
+  useEffect(() => {
+    if (imageId && currentMaskIndex >= 0) {
+      fetchMask(currentMaskIndex);
+    }
+  }, [imageId, currentMaskIndex]);
+
+  const handlePrevMask = () => {
+    setCurrentMaskIndex((prev) => Math.max(0, prev - 1));
+  };
+
+  const handleNextMask = () => {
+    setCurrentMaskIndex((prev) => prev + 1);
+  };
 
   return (
     <div className={styles.container}>
@@ -86,15 +110,19 @@ function Home() {
           image={image}
           loading={loading}
           error={error}
-          results={results}
+          results={cachedResults[currentMaskIndex]}
+          currentMaskIndex={currentMaskIndex}
+          totalInstances={totalInstances}
+          onPrevMask={handlePrevMask}
+          onNextMask={handleNextMask}
         />
         <div className={styles.maskContainer}>
           <div className={styles.maskSection}>
             <h2>Original Mask R-CNN Output</h2>
-            {results && results.original_mask ? (
+            {cachedResults[currentMaskIndex]?.original_mask ? (
               <img
-                src={`data:image/png;base64,${results.original_mask}`}
-                alt="Original Mask R-CNN"
+                src={`data:image/png;base64,${cachedResults[currentMaskIndex].original_mask}`}
+                alt={`Original Mask R-CNN ${currentMaskIndex + 1}`}
                 className={styles.maskImage}
               />
             ) : (
@@ -105,10 +133,10 @@ function Home() {
           </div>
           <div className={styles.maskSection}>
             <h2>Custom A* Refined Output</h2>
-            {results && results.custom_mask ? (
+            {cachedResults[currentMaskIndex]?.custom_mask ? (
               <img
-                src={`data:image/png;base64,${results.custom_mask}`}
-                alt="Custom A* Refined Mask"
+                src={`data:image/png;base64,${cachedResults[currentMaskIndex].custom_mask}`}
+                alt={`Custom A* Refined Mask ${currentMaskIndex + 1}`}
                 className={styles.maskImage}
               />
             ) : (
