@@ -2,9 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 import uuid
-import base64
 from PIL import Image
-import io
 import time
 import json
 import numpy as np
@@ -12,6 +10,7 @@ from typing import Optional
 from models.mask_rcnn import run_mask_rcnn
 from models.astar_refinement import refine_mask
 from utils.image_utils import save_image, image_to_base64
+from utils.metrics import compute_metrics
 import threading
 import logging
 
@@ -31,37 +30,6 @@ os.makedirs(RESULT_FOLDER, exist_ok=True)
 file_lock = threading.Lock()
 
 
-def compute_metrics(
-    original_mask: Optional[np.ndarray], custom_mask: Optional[np.ndarray]
-) -> dict:
-    """Compute IoU, Dice coefficient, and IoU improvement for masks."""
-    if original_mask is None or custom_mask is None:
-        return {"iou_improvement": 0.0, "dice_coefficient": 0.0}
-
-    # Convert masks to boolean
-    original_mask = original_mask > 0
-    custom_mask = custom_mask > 0
-
-    # Compute intersection and union
-    intersection = np.logical_and(original_mask, custom_mask).sum()
-    union = np.logical_or(original_mask, custom_mask).sum()
-
-    # Compute IoU
-    iou = intersection / union if union > 0 else 0.0
-
-    # Compute Dice coefficient
-    dice = (
-        (2 * intersection) / (original_mask.sum() + custom_mask.sum())
-        if (original_mask.sum() + custom_mask.sum()) > 0
-        else 0.0
-    )
-
-    # IoU improvement (relative to original mask's IoU with itself, which is 1.0)
-    iou_improvement = iou - 1.0  # Simplified; assumes original mask is baseline
-
-    return {"iou_improvement": float(iou_improvement), "dice_coefficient": float(dice)}
-
-
 def process_instance(
     image_path: str, image_id: str, index: int, total_instances: int
 ) -> bool:
@@ -73,8 +41,23 @@ def process_instance(
             return False
 
         custom_mask = refine_mask(original_mask, image_path)
-        metrics = compute_metrics(original_mask, custom_mask)
-        metrics["processing_time"] = time.time() - start_time
+        image = Image.open(image_path).convert("RGB")
+        image_np = np.array(image)[:, :, ::-1]  # Convert RGB to BGR for OpenCV
+
+        # Compute metrics for both masks
+        original_metrics = compute_metrics(original_mask, image_np)
+        custom_metrics = compute_metrics(custom_mask, image_np)
+        metrics = {
+            "original_edge_alignment_score": original_metrics["edge_alignment_score"],
+            "original_region_homogeneity_score": original_metrics[
+                "region_homogeneity_score"
+            ],
+            "custom_edge_alignment_score": custom_metrics["edge_alignment_score"],
+            "custom_region_homogeneity_score": custom_metrics[
+                "region_homogeneity_score"
+            ],
+            "processing_time": time.time() - start_time,
+        }
 
         original_mask_path = os.path.join(
             RESULT_FOLDER, f"{image_id}_{index}_original.png"
@@ -150,10 +133,24 @@ def upload_image():
         # Run A* refinement
         custom_mask = refine_mask(original_mask, image_path)
 
-        # Compute metrics
-        metrics = compute_metrics(original_mask, custom_mask)
-        processing_time = time.time() - start_time
-        metrics["processing_time"] = processing_time
+        # Load image for metrics
+        image = Image.open(image_path).convert("RGB")
+        image_np = np.array(image)[:, :, ::-1]  # Convert RGB to BGR for OpenCV
+
+        # Compute metrics for both masks
+        original_metrics = compute_metrics(original_mask, image_np)
+        custom_metrics = compute_metrics(custom_mask, image_np)
+        metrics = {
+            "original_edge_alignment_score": original_metrics["edge_alignment_score"],
+            "original_region_homogeneity_score": original_metrics[
+                "region_homogeneity_score"
+            ],
+            "custom_edge_alignment_score": custom_metrics["edge_alignment_score"],
+            "custom_region_homogeneity_score": custom_metrics[
+                "region_homogeneity_score"
+            ],
+            "processing_time": time.time() - start_time,
+        }
 
         # Save results
         original_mask_path = os.path.join(
@@ -208,7 +205,7 @@ def get_results(image_id: str, index: int):
                 data = json.load(f)
 
             original_mask_path = data["original_mask_path"]
-            custom_mask_path = data["original_mask_path"]
+            custom_mask_path = data["custom_mask_path"]
             total_instances = data["total_instances"]
 
             original_mask_b64 = (
@@ -224,11 +221,17 @@ def get_results(image_id: str, index: int):
                         "original_mask": original_mask_b64,
                         "custom_mask": custom_mask_b64,
                         "metrics": {
-                            "iou_improvement": data["metrics"].get(
-                                "iou_improvement", 0.0
+                            "original_edge_alignment_score": data["metrics"].get(
+                                "original_edge_alignment_score", 0.0
                             ),
-                            "dice_coefficient": data["metrics"].get(
-                                "dice_coefficient", 0.0
+                            "original_region_homogeneity_score": data["metrics"].get(
+                                "original_region_homogeneity_score", 0.0
+                            ),
+                            "custom_edge_alignment_score": data["metrics"].get(
+                                "custom_edge_alignment_score", 0.0
+                            ),
+                            "custom_region_homogeneity_score": data["metrics"].get(
+                                "custom_region_homogeneity_score", 0.0
                             ),
                             "processing_time": data["metrics"].get(
                                 "processing_time", 0.0
@@ -265,10 +268,24 @@ def get_results(image_id: str, index: int):
         # Run A* refinement
         custom_mask = refine_mask(original_mask, image_path)
 
-        # Compute metrics
-        metrics = compute_metrics(original_mask, custom_mask)
-        processing_time = time.time() - start_time
-        metrics["processing_time"] = processing_time
+        # Load image for metrics
+        image = Image.open(image_path).convert("RGB")
+        image_np = np.array(image)[:, :, ::-1]  # Convert RGB to BGR for OpenCV
+
+        # Compute metrics for both masks
+        original_metrics = compute_metrics(original_mask, image_np)
+        custom_metrics = compute_metrics(custom_mask, image_np)
+        metrics = {
+            "original_edge_alignment_score": original_metrics["edge_alignment_score"],
+            "original_region_homogeneity_score": original_metrics[
+                "region_homogeneity_score"
+            ],
+            "custom_edge_alignment_score": custom_metrics["edge_alignment_score"],
+            "custom_region_homogeneity_score": custom_metrics[
+                "region_homogeneity_score"
+            ],
+            "processing_time": time.time() - start_time,
+        }
 
         # Save results
         original_mask_path = os.path.join(

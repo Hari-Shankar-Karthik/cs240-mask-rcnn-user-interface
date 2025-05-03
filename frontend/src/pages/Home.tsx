@@ -7,8 +7,10 @@ interface Results {
   original_mask: string;
   custom_mask: string;
   metrics: {
-    iou_improvement: number;
-    dice_coefficient: number;
+    original_edge_alignment_score: number;
+    original_region_homogeneity_score: number;
+    custom_edge_alignment_score: number;
+    custom_region_homogeneity_score: number;
     processing_time: number;
   };
   total_instances: number;
@@ -22,6 +24,7 @@ function Home() {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [totalInstances, setTotalInstances] = useState<number>(0);
+  const [processedInstances, setProcessedInstances] = useState<number>(0);
 
   const handleImageUpload = async (file: File) => {
     if (!file) return;
@@ -33,6 +36,7 @@ function Home() {
     setImageId(null);
     setCurrentMaskIndex(0);
     setTotalInstances(0);
+    setProcessedInstances(0);
 
     const formData = new FormData();
     formData.append("image", file);
@@ -48,6 +52,7 @@ function Home() {
         setImageId(data.image_id);
         setCachedResults([data.results]);
         setTotalInstances(data.results.total_instances);
+        setProcessedInstances(1);
         setLoading(false);
       } else {
         setError(data.error || "Failed to upload image");
@@ -74,6 +79,7 @@ function Home() {
           newResults[index] = data;
           return newResults;
         });
+        setProcessedInstances((prev) => Math.max(prev, index + 1));
         setLoading(false);
       } else {
         setError(data.error || "Failed to fetch mask");
@@ -84,6 +90,36 @@ function Home() {
       setLoading(false);
     }
   };
+
+  // Poll for new results every 5 seconds
+  useEffect(() => {
+    if (!imageId || processedInstances >= totalInstances) return;
+
+    const pollResults = async () => {
+      for (let index = processedInstances; index < totalInstances; index++) {
+        if (cachedResults[index]) continue;
+        try {
+          const response = await fetch(
+            `${API_URL}/results/${imageId}/${index}`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            setCachedResults((prev) => {
+              const newResults = [...prev];
+              newResults[index] = data;
+              return newResults;
+            });
+            setProcessedInstances((prev) => Math.max(prev, index + 1));
+          }
+        } catch (err) {
+          // Silently ignore errors during polling
+        }
+      }
+    };
+
+    const interval = setInterval(pollResults, 5000);
+    return () => clearInterval(interval);
+  }, [imageId, processedInstances, totalInstances, cachedResults]);
 
   useEffect(() => {
     if (imageId && currentMaskIndex >= 0) {
@@ -113,6 +149,7 @@ function Home() {
           results={cachedResults[currentMaskIndex]}
           currentMaskIndex={currentMaskIndex}
           totalInstances={totalInstances}
+          processedInstances={processedInstances}
           onPrevMask={handlePrevMask}
           onNextMask={handleNextMask}
         />

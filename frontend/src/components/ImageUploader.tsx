@@ -7,8 +7,10 @@ interface ImageUploaderProps {
   error: string | null;
   results: {
     metrics: {
-      iou_improvement: number;
-      dice_coefficient: number;
+      original_edge_alignment_score: number;
+      original_region_homogeneity_score: number;
+      custom_edge_alignment_score: number;
+      custom_region_homogeneity_score: number;
       processing_time: number;
     };
   } | null;
@@ -63,17 +65,25 @@ function ImageUploader({
           Processing {processedInstances} of {totalInstances} instances...
         </p>
       )}
-      {results && (
+      {results && results.metrics && (
         <div className={styles.metrics}>
           <h3>Performance Metrics</h3>
           <div className={styles.metricsContent}>
             <p>
-              <span>IoU Improvement:</span>{" "}
-              {results.metrics.iou_improvement.toFixed(4)}
+              <span>Original Edge Alignment:</span>{" "}
+              {results.metrics.original_edge_alignment_score.toFixed(4)}
             </p>
             <p>
-              <span>Dice Coefficient:</span>{" "}
-              {results.metrics.dice_coefficient.toFixed(4)}
+              <span>Custom Edge Alignment:</span>{" "}
+              {results.metrics.custom_edge_alignment_score.toFixed(4)}
+            </p>
+            <p>
+              <span>Original Region Homogeneity:</span>{" "}
+              {results.metrics.original_region_homogeneity_score.toFixed(4)}
+            </p>
+            <p>
+              <span>Custom Region Homogeneity:</span>{" "}
+              {results.metrics.custom_region_homogeneity_score.toFixed(4)}
             </p>
             <p>
               <span>Processing Time:</span>{" "}
