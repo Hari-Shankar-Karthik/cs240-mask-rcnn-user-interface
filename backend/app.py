@@ -30,6 +30,20 @@ os.makedirs(RESULT_FOLDER, exist_ok=True)
 file_lock = threading.Lock()
 
 
+def compute_metrics_thread(
+    mask: np.ndarray, image: np.ndarray, result_list: list, index: int
+):
+    """Wrapper to compute metrics in a thread and store result in result_list."""
+    try:
+        result_list[index] = compute_metrics(mask, image)
+    except Exception as e:
+        logger.error(f"Error computing metrics in thread: {str(e)}")
+        result_list[index] = {
+            "edge_alignment_score": 0.0,
+            "region_homogeneity_score": 0.0,
+        }
+
+
 def process_instance(
     image_path: str, image_id: str, index: int, total_instances: int
 ) -> bool:
@@ -44,9 +58,28 @@ def process_instance(
         image = Image.open(image_path).convert("RGB")
         image_np = np.array(image)[:, :, ::-1]  # Convert RGB to BGR for OpenCV
 
-        # Compute metrics for both masks
-        original_metrics = compute_metrics(original_mask, image_np)
-        custom_metrics = compute_metrics(custom_mask, image_np)
+        # Compute metrics for both masks in parallel
+        result_list = [None, None]  # [original_metrics, custom_metrics]
+        threads = [
+            threading.Thread(
+                target=compute_metrics_thread,
+                args=(original_mask, image_np, result_list, 0),
+            ),
+            threading.Thread(
+                target=compute_metrics_thread,
+                args=(custom_mask, image_np, result_list, 1),
+            ),
+        ]
+
+        # Start and join threads
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        original_metrics = result_list[0]
+        custom_metrics = result_list[1]
+
         metrics = {
             "original_edge_alignment_score": original_metrics["edge_alignment_score"],
             "original_region_homogeneity_score": original_metrics[
@@ -137,9 +170,28 @@ def upload_image():
         image = Image.open(image_path).convert("RGB")
         image_np = np.array(image)[:, :, ::-1]  # Convert RGB to BGR for OpenCV
 
-        # Compute metrics for both masks
-        original_metrics = compute_metrics(original_mask, image_np)
-        custom_metrics = compute_metrics(custom_mask, image_np)
+        # Compute metrics for both masks in parallel
+        result_list = [None, None]  # [original_metrics, custom_metrics]
+        threads = [
+            threading.Thread(
+                target=compute_metrics_thread,
+                args=(original_mask, image_np, result_list, 0),
+            ),
+            threading.Thread(
+                target=compute_metrics_thread,
+                args=(custom_mask, image_np, result_list, 1),
+            ),
+        ]
+
+        # Start and join threads
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        original_metrics = result_list[0]
+        custom_metrics = result_list[1]
+
         metrics = {
             "original_edge_alignment_score": original_metrics["edge_alignment_score"],
             "original_region_homogeneity_score": original_metrics[
@@ -272,9 +324,28 @@ def get_results(image_id: str, index: int):
         image = Image.open(image_path).convert("RGB")
         image_np = np.array(image)[:, :, ::-1]  # Convert RGB to BGR for OpenCV
 
-        # Compute metrics for both masks
-        original_metrics = compute_metrics(original_mask, image_np)
-        custom_metrics = compute_metrics(custom_mask, image_np)
+        # Compute metrics for both masks in parallel
+        result_list = [None, None]  # [original_metrics, custom_metrics]
+        threads = [
+            threading.Thread(
+                target=compute_metrics_thread,
+                args=(original_mask, image_np, result_list, 0),
+            ),
+            threading.Thread(
+                target=compute_metrics_thread,
+                args=(custom_mask, image_np, result_list, 1),
+            ),
+        ]
+
+        # Start and join threads
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        original_metrics = result_list[0]
+        custom_metrics = result_list[1]
+
         metrics = {
             "original_edge_alignment_score": original_metrics["edge_alignment_score"],
             "original_region_homogeneity_score": original_metrics[

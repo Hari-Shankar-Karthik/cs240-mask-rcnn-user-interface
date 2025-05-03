@@ -1,114 +1,119 @@
 .container {
-  width: 50%;
-  background-color: #ffffff;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 1.5rem;
   display: flex;
   flex-direction: column;
-}
-
-.container h2 {
-  font-size: 1.125rem;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 1rem;
+  align-items: center;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  max-width: 600px;
+  margin: 20px auto;
 }
 
 .fileInput {
-  padding: 0.5rem;
-  border: 1px solid #e5e5e5;
-  border-radius: 0.25rem;
-  margin-bottom: 1rem;
-}
-
-.fileInput:focus {
-  outline: none;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+  margin: 10px 0;
 }
 
 .imageContainer {
-  margin-bottom: 1rem;
+  margin: 20px 0;
 }
 
 .uploadedImage {
   max-width: 100%;
   height: auto;
-  border-radius: 0.25rem;
-  border: 1px solid #e5e5e5;
+  border-radius: 4px;
 }
 
 .loading {
-  color: #666;
+  color: #007bff;
   font-style: italic;
 }
 
 .error {
-  color: #d32f2f;
-  background-color: #fee;
-  padding: 0.5rem;
-  border-radius: 0.25rem;
-  text-align: center;
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.progress {
+  color: #555;
+  font-style: italic;
+  margin-top: 10px;
 }
 
 .metrics {
-  margin-top: 1rem;
+  width: 100%;
+  margin-top: 20px;
 }
 
 .metrics h3 {
-  font-size: 1rem;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 0.5rem;
+  text-align: center;
+  margin-bottom: 10px;
 }
 
-.metricsContent {
-  background-color: #f9f9f9;
-  padding: 1rem;
-  border-radius: 0.25rem;
+.metricsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 20px;
 }
 
-.metricsContent p {
-  color: #333;
-  margin: 0.25rem 0;
+.metricsTable th,
+.metricsTable td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
 }
 
-.metricsContent span {
-  font-weight: 500;
+.metricsTable th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+}
+
+.metricsTable td {
+  background-color: #fff;
+}
+
+.improved {
+  color: #28a745; /* Green for improvement */
+  font-weight: bold;
+}
+
+.regressed {
+  color: #dc3545; /* Red for regression */
+  font-weight: bold;
+}
+
+.neutral {
+  color: #000; /* Black for no change or Processing Time */
 }
 
 .navigation {
   display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 1rem;
-  margin-top: 1rem;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .navButton {
-  padding: 0.5rem 1rem;
+  padding: 8px 16px;
   background-color: #007bff;
-  color: #ffffff;
+  color: #fff;
   border: none;
-  border-radius: 0.25rem;
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 0.875rem;
 }
 
 .navButton:disabled {
-  background-color: #cccccc;
+  background-color: #6c757d;
   cursor: not-allowed;
 }
 
 .maskCounter {
-  font-size: 0.875rem;
-  color: #333;
+  font-size: 16px;
 }
 
 .lastMaskMessage {
-  margin-top: 0.5rem;
-  color: #666;
-  font-style: italic;
   text-align: center;
+  color: #555;
+  margin-top: 10px;
 }

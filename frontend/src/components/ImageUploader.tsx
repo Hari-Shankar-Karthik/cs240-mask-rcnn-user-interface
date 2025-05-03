@@ -68,28 +68,61 @@ function ImageUploader({
       {results && results.metrics && (
         <div className={styles.metrics}>
           <h3>Performance Metrics</h3>
-          <div className={styles.metricsContent}>
-            <p>
-              <span>Original Edge Alignment:</span>{" "}
-              {results.metrics.original_edge_alignment_score.toFixed(4)}
-            </p>
-            <p>
-              <span>Custom Edge Alignment:</span>{" "}
-              {results.metrics.custom_edge_alignment_score.toFixed(4)}
-            </p>
-            <p>
-              <span>Original Region Homogeneity:</span>{" "}
-              {results.metrics.original_region_homogeneity_score.toFixed(4)}
-            </p>
-            <p>
-              <span>Custom Region Homogeneity:</span>{" "}
-              {results.metrics.custom_region_homogeneity_score.toFixed(4)}
-            </p>
-            <p>
-              <span>Processing Time:</span>{" "}
-              {results.metrics.processing_time.toFixed(2)} seconds
-            </p>
-          </div>
+          <table className={styles.metricsTable}>
+            <thead>
+              <tr>
+                <th>Metric</th>
+                <th>Original (Mask R-CNN)</th>
+                <th>Custom (A* Refined)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Edge Alignment Score</td>
+                <td>
+                  {results.metrics.original_edge_alignment_score.toFixed(4)}
+                </td>
+                <td
+                  className={
+                    results.metrics.custom_edge_alignment_score >
+                    results.metrics.original_edge_alignment_score
+                      ? styles.improved
+                      : results.metrics.custom_edge_alignment_score <
+                        results.metrics.original_edge_alignment_score
+                      ? styles.regressed
+                      : styles.neutral
+                  }
+                >
+                  {results.metrics.custom_edge_alignment_score.toFixed(4)}
+                </td>
+              </tr>
+              <tr>
+                <td>Region Homogeneity Score</td>
+                <td>
+                  {results.metrics.original_region_homogeneity_score.toFixed(4)}
+                </td>
+                <td
+                  className={
+                    results.metrics.custom_region_homogeneity_score >
+                    results.metrics.original_region_homogeneity_score
+                      ? styles.improved
+                      : results.metrics.custom_region_homogeneity_score <
+                        results.metrics.original_region_homogeneity_score
+                      ? styles.regressed
+                      : styles.neutral
+                  }
+                >
+                  {results.metrics.custom_region_homogeneity_score.toFixed(4)}
+                </td>
+              </tr>
+              <tr>
+                <td>Processing Time</td>
+                <td colSpan={2} className={styles.neutral}>
+                  {results.metrics.processing_time.toFixed(2)} seconds
+                </td>
+              </tr>
+            </tbody>
+          </table>
           <div className={styles.navigation}>
             <button
               onClick={onPrevMask}
