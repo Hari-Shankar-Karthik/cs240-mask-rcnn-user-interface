@@ -14,6 +14,7 @@ interface ImageUploaderProps {
   } | null;
   currentMaskIndex: number;
   totalInstances: number;
+  processedInstances: number;
   onPrevMask: () => void;
   onNextMask: () => void;
 }
@@ -26,6 +27,7 @@ function ImageUploader({
   results,
   currentMaskIndex,
   totalInstances,
+  processedInstances,
   onPrevMask,
   onNextMask,
 }: ImageUploaderProps) {
@@ -56,6 +58,11 @@ function ImageUploader({
         <p className={styles.loading}>Processing image, please wait...</p>
       )}
       {error && <p className={styles.error}>{error}</p>}
+      {processedInstances < totalInstances && totalInstances > 0 && (
+        <p className={styles.progress}>
+          Processing {processedInstances} of {totalInstances} instances...
+        </p>
+      )}
       {results && (
         <div className={styles.metrics}>
           <h3>Performance Metrics</h3>
@@ -88,7 +95,7 @@ function ImageUploader({
             </span>
             <button
               onClick={onNextMask}
-              disabled={currentMaskIndex >= totalInstances - 1}
+              disabled={currentMaskIndex >= processedInstances - 1}
               className={styles.navButton}
             >
               Next

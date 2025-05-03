@@ -173,7 +173,9 @@ def apply_guided_filter(
         return refined_mask
 
 
-def refine_mask(mask: Optional[np.ndarray], image_path: str) -> Optional[np.ndarray]:
+def refine_mask(
+    mask: Optional[np.ndarray], image_path: str, edge_map: Optional[np.ndarray] = None
+) -> Optional[np.ndarray]:
     """
     Apply A* refinement to a single input mask.
 
@@ -181,6 +183,7 @@ def refine_mask(mask: Optional[np.ndarray], image_path: str) -> Optional[np.ndar
         mask (Optional[np.ndarray]): Binary mask (np.uint8 array of shape (height, width)
                                     with values 0 or 255), or None if invalid.
         image_path (str): Path to the input image file.
+        edge_map (Optional[np.ndarray]): Precomputed edge map to reuse.
 
     Returns:
         Optional[np.ndarray]: Refined binary mask (np.uint8 array of shape (height, width)
@@ -197,8 +200,9 @@ def refine_mask(mask: Optional[np.ndarray], image_path: str) -> Optional[np.ndar
     if contour is None:
         return mask.copy()  # Return original mask if no contour
 
-    # Step 2: Compute edge map
-    edge_map = compute_edge_map(image)
+    # Step 2: Use or compute edge map
+    if edge_map is None:
+        edge_map = compute_edge_map(image)
 
     # Step 3: Snap contour to edges using A*
     refined_contour = snap_contour_to_edges(contour, edge_map, image)

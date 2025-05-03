@@ -12,14 +12,23 @@ from typing import Optional
 from models.mask_rcnn import run_mask_rcnn
 from models.astar_refinement import refine_mask
 from utils.image_utils import save_image, image_to_base64
+import threading
+import logging
 
 app = Flask(__name__)
 CORS(app)
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 UPLOAD_FOLDER = "uploads"
 RESULT_FOLDER = "results"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(RESULT_FOLDER, exist_ok=True)
+
+# Thread lock for file operations
+file_lock = threading.Lock()
 
 
 def compute_metrics(
@@ -51,6 +60,57 @@ def compute_metrics(
     iou_improvement = iou - 1.0  # Simplified; assumes original mask is baseline
 
     return {"iou_improvement": float(iou_improvement), "dice_coefficient": float(dice)}
+
+
+def process_instance(
+    image_path: str, image_id: str, index: int, total_instances: int
+) -> bool:
+    """Process a single instance and save results."""
+    try:
+        start_time = time.time()
+        original_mask, _ = run_mask_rcnn(image_path, index)
+        if original_mask is None:
+            return False
+
+        custom_mask = refine_mask(original_mask, image_path)
+        metrics = compute_metrics(original_mask, custom_mask)
+        metrics["processing_time"] = time.time() - start_time
+
+        original_mask_path = os.path.join(
+            RESULT_FOLDER, f"{image_id}_{index}_original.png"
+        )
+        custom_mask_path = os.path.join(RESULT_FOLDER, f"{image_id}_{index}_custom.png")
+        metrics_path = os.path.join(RESULT_FOLDER, f"{image_id}_{index}_metrics.json")
+
+        with file_lock:
+            Image.fromarray(original_mask).save(original_mask_path)
+            Image.fromarray(custom_mask).save(custom_mask_path)
+            with open(metrics_path, "w") as f:
+                json.dump(
+                    {
+                        "metrics": metrics,
+                        "original_mask_path": original_mask_path,
+                        "custom_mask_path": custom_mask_path,
+                        "total_instances": total_instances,
+                    },
+                    f,
+                )
+        return True
+    except Exception as e:
+        logger.error(
+            f"Error processing index {index} for image_id {image_id}: {str(e)}"
+        )
+        return False
+
+
+def background_process_all_instances(
+    image_path: str, image_id: str, total_instances: int, skip_index: int
+):
+    """Compute masks for all instances in the background, skipping the provided index."""
+    for index in range(total_instances):
+        if index == skip_index:
+            continue
+        process_instance(image_path, image_id, index, total_instances)
 
 
 @app.route("/upload", methods=["POST"])
@@ -100,22 +160,28 @@ def upload_image():
             RESULT_FOLDER, f"{image_id}_{index}_original.png"
         )
         custom_mask_path = os.path.join(RESULT_FOLDER, f"{image_id}_{index}_custom.png")
-
-        Image.fromarray(original_mask).save(original_mask_path)
-        Image.fromarray(custom_mask).save(custom_mask_path)
-
-        # Store metrics
         metrics_path = os.path.join(RESULT_FOLDER, f"{image_id}_{index}_metrics.json")
-        with open(metrics_path, "w") as f:
-            json.dump(
-                {
-                    "metrics": metrics,
-                    "original_mask_path": original_mask_path,
-                    "custom_mask_path": custom_mask_path,
-                    "total_instances": total_instances,
-                },
-                f,
-            )
+
+        with file_lock:
+            Image.fromarray(original_mask).save(original_mask_path)
+            Image.fromarray(custom_mask).save(custom_mask_path)
+            with open(metrics_path, "w") as f:
+                json.dump(
+                    {
+                        "metrics": metrics,
+                        "original_mask_path": original_mask_path,
+                        "custom_mask_path": custom_mask_path,
+                        "total_instances": total_instances,
+                    },
+                    f,
+                )
+
+        # Start background processing for all other indices
+        threading.Thread(
+            target=background_process_all_instances,
+            args=(image_path, image_id, total_instances, index),
+            daemon=True,
+        ).start()
 
         # Prepare response
         results = {
@@ -142,7 +208,7 @@ def get_results(image_id: str, index: int):
                 data = json.load(f)
 
             original_mask_path = data["original_mask_path"]
-            custom_mask_path = data["custom_mask_path"]
+            custom_mask_path = data["original_mask_path"]
             total_instances = data["total_instances"]
 
             original_mask_b64 = (
@@ -209,21 +275,21 @@ def get_results(image_id: str, index: int):
             RESULT_FOLDER, f"{image_id}_{index}_original.png"
         )
         custom_mask_path = os.path.join(RESULT_FOLDER, f"{image_id}_{index}_custom.png")
+        metrics_path = os.path.join(RESULT_FOLDER, f"{image_id}_{index}_metrics.json")
 
-        Image.fromarray(original_mask).save(original_mask_path)
-        Image.fromarray(custom_mask).save(custom_mask_path)
-
-        # Store metrics
-        with open(metrics_path, "w") as f:
-            json.dump(
-                {
-                    "metrics": metrics,
-                    "original_mask_path": original_mask_path,
-                    "custom_mask_path": custom_mask_path,
-                    "total_instances": total_instances,
-                },
-                f,
-            )
+        with file_lock:
+            Image.fromarray(original_mask).save(original_mask_path)
+            Image.fromarray(custom_mask).save(custom_mask_path)
+            with open(metrics_path, "w") as f:
+                json.dump(
+                    {
+                        "metrics": metrics,
+                        "original_mask_path": original_mask_path,
+                        "custom_mask_path": custom_mask_path,
+                        "total_instances": total_instances,
+                    },
+                    f,
+                )
 
         # Prepare response
         results = {
